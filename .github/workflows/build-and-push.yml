@@ -67,7 +67,11 @@ jobs:
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           fi
-          TAG=${VERSION}-${{ inputs.tag_suffix }}
+          if [ ! -z "${{ inputs.tag_suffix }}" ]
+          then
+            ${VERSION}=${VERSION}-${{ inputs.tag_suffix }}
+          fi
+          TAG=${VERSION}
           echo ::set-output name=tag::${TAG}
       
       - name: Get the metadata
