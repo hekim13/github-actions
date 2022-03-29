@@ -8,7 +8,7 @@ on:
       dockerfile_path:
         type: string
       tag_suffix: 
-        required: true
+        required: false
         type: string
       platform:
         required: true
