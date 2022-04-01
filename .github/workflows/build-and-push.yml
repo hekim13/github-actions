@@ -78,7 +78,7 @@ jobs:
         run: |
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
           context: ${{ steps.getdockercontext.outputs.dockercontext }}
