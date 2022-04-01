@@ -84,7 +84,7 @@ jobs:
           context: ${{ steps.getdockercontext.outputs.dockercontext }}
           file: ${{ steps.getdockerfile.outputs.dockerfile }}
           platforms: ${{ inputs.platform }}
-          push: true
+          push: false
           cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
           cache-to: type=inline
           tags: ${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
@@ -102,3 +102,17 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+      - name: Build Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: ${{ steps.getdockercontext.outputs.dockercontext }}
+          file: ${{ steps.getdockerfile.outputs.dockerfile }}
+          platforms: ${{ inputs.platform }}
+          push: true
+          cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
+          cache-to: type=inline
+          tags: ${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.created=${{ steps.getmetadata.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
