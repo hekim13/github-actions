@@ -68,7 +68,7 @@ jobs:
           fi
           if [ ! -z "${{ inputs.tag_suffix }}" ]
           then
-            ${VERSION}=${VERSION}-${{ inputs.tag_suffix }}
+            VERSION=${VERSION}-${{ inputs.tag_suffix }}
           fi
           TAG=${VERSION}
           echo ::set-output name=tag::${TAG}
