@@ -80,7 +80,7 @@ jobs:
           push: true
           cache-from: type=registry,ref=${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
           cache-to: type=inline
-          tags: ${{ steps.gettrivyimage.outputs.name }}:${{ steps.gettag.outputs.tag }}
+          tags: ${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
       
       - name: Run Trivy vulnerability scanner
         if: ${{ inputs.use_scan }} == true
