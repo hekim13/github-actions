@@ -85,14 +85,14 @@ jobs:
           file: ${{ steps.getdockerfile.outputs.dockerfile }}
           platforms: ${{ inputs.platform }}
           push: false
-          cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ github.sha }}
+          cache-from: type=registry,ref=docker-image:${{ github.sha }}
           cache-to: type=inline
-          tags: ${{ secrets.docker_repository }}:${{ github.sha }}
+          tags: docker-image:${{ github.sha }}
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ secrets.docker_repository }}:${{ github.sha }}'
+          image-ref: 'docker-image:${{ github.sha }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
