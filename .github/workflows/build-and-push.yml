@@ -64,14 +64,14 @@ jobs:
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
       
       - name: Get the trivy image name
-        if: ${{ inputs.use_scan }} == true
+        if: ${{ inputs.use_scan == true }}
         id: gettrivyimage
         run: |
           trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
           echo ::set-output name=trivyimage::${trivyimage}
 
       - name: Build Trivy Scan Docker image
-        if: ${{ inputs.use_scan }} == true
+        if: ${{ inputs.use_scan == true }}
         uses: docker/build-push-action@v2
         with:
           context: ${{ inputs.docker_context }}
@@ -83,7 +83,7 @@ jobs:
           tags: ${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
       
       - name: Run Trivy vulnerability scanner
-        if: ${{ inputs.use_scan }} == true
+        if: ${{ inputs.use_scan == true }}
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'docker.io/${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}'
