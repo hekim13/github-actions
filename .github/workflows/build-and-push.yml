@@ -68,7 +68,6 @@ jobs:
         id: gettrivyimage
         run: |
           trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
-          echo $trivyimage
           echo ::set-output name=trivyimage::${trivyimage}
 
       - name: Build Trivy Scan Docker image
@@ -79,7 +78,7 @@ jobs:
           file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
           push: true
-          cache-from: type=registry,ref=${{ steps.gettrivyimage.outputs.name }}:${{ steps.gettag.outputs.tag }}
+          cache-from: type=registry,ref=${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
           cache-to: type=inline
           tags: ${{ steps.gettrivyimage.outputs.name }}:${{ steps.gettag.outputs.tag }}
       
@@ -87,7 +86,7 @@ jobs:
         if: ${{ inputs.use_scan }} == true
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ steps.gettrivyimage.outputs.name }}:${{ steps.gettag.outputs.tag }}'
+          image-ref: 'docker.io/${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
