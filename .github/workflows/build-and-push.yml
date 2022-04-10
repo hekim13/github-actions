@@ -68,6 +68,7 @@ jobs:
         id: gettrivyimage
         run: |
           trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
+          echo $trivyimage
           echo ::set-output name=trivyimage::${trivyimage}
 
       - name: Build Trivy Scan Docker image
