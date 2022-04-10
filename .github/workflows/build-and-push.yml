@@ -80,15 +80,15 @@ jobs:
           file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
           push: false
-          cache-from: type=registry,ref=trivy-scan-${{ secrets.docker_repository }}:${{ github.sha }}
+          cache-from: type=registry,ref=trivy-scan:${{ steps.gettag.outputs.tag }}
           cache-to: type=inline
-          tags: trivy-scan-${{ secrets.docker_repository }}:${{ github.sha }}
+          tags: trivy-scan:${{ steps.gettag.outputs.tag }}
       
       - name: Run Trivy vulnerability scanner
         if: ${{ inputs.use_scan }} == true
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/trivy-scan-${{ secrets.docker_repository }}:${{ github.sha }}'
+          image-ref: 'trivy-scan:${{ steps.gettag.outputs.tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
