@@ -63,7 +63,7 @@ jobs:
         run: |
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
       
-      - name: Get the trivy image name
+      - name: Get the Trivy image name
         if: ${{ inputs.use_scan == true }}
         id: gettrivyimage
         run: |
