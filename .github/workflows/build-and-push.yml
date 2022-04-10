@@ -79,7 +79,7 @@ jobs:
           context: ${{ steps.getdockercontext.outputs.dockercontext }}
           file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
-          push: false
+          push: true
           cache-from: type=registry,ref=trivy-scan:${{ steps.gettag.outputs.tag }}
           cache-to: type=inline
           tags: trivy-scan:${{ steps.gettag.outputs.tag }}
@@ -88,7 +88,7 @@ jobs:
         if: ${{ inputs.use_scan }} == true
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'trivy-scan:${{ steps.gettag.outputs.tag }}'
+          image-ref: 'docker.io/trivy-scan:${{ steps.gettag.outputs.tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
