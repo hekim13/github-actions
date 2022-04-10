@@ -7,6 +7,7 @@ on:
         type: string
       dockerfile_path:
         type: string
+        default: './Dockerfile'
       tag_suffix: 
         type: string
       platform:
@@ -14,6 +15,7 @@ on:
         type: string
       use_scan:
         type: boolean
+        default: true
     secrets:
       docker_username:
         required: true
@@ -51,16 +53,6 @@ jobs:
           fi
           echo ::set-output name=dockercontext::${DOCKERCONTEXT}
 
-      - name: Get the Dockerfile
-        id: getdockerfile
-        run: |
-          DOCKERFILE=./Dockerfile
-          if [ ! -z "${{ inputs.dockerfile_path }}" ]
-          then
-            DOCKERFILE=${{ inputs.dockerfile_path }}
-          fi
-          echo ::set-output name=dockerfile::${DOCKERFILE}
-
       - name: Get the tag
         id: gettag
         run: |
@@ -81,10 +73,11 @@ jobs:
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Build Docker image
+        if: ${{ inputs.use_scan }} == true
         uses: docker/build-push-action@v2
         with:
           context: ${{ steps.getdockercontext.outputs.dockercontext }}
-          file: ${{ steps.getdockerfile.outputs.dockerfile }}
+          file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
           push: false
           cache-from: type=registry,ref=${{ secrets.docker_repository }}-trivy:${{ github.sha }}
@@ -92,6 +85,7 @@ jobs:
           tags: ${{ secrets.docker_repository }}-trivy:${{ github.sha }}
       
       - name: Run Trivy vulnerability scanner
+        if: ${{ inputs.use_scan }} == true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'docker.io/${{ secrets.docker_repository }}-trivy:${{ github.sha }}'
@@ -105,7 +99,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ${{ steps.getdockercontext.outputs.dockercontext }}
-          file: ${{ steps.getdockerfile.outputs.dockerfile }}
+          file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
           push: true
           cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
