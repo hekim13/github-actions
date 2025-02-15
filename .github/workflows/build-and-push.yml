@@ -57,23 +57,23 @@ jobs:
             VERSION=${VERSION}-${{ inputs.tag_suffix }}
           fi
           TAG=${VERSION}
-          echo ::set-output name=tag::${TAG}
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
       
       - name: Get the metadata
         id: getmetadata
         run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
       
       - name: Get the Trivy image name
         if: ${{ inputs.use_scan == true }}
         id: gettrivyimage
         run: |
           trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
-          echo ::set-output name=trivyimage::${trivyimage}
+          echo "trivyimage=${trivyimage}" >> $GITHUB_OUTPUT
 
       - name: Build Trivy Scan Docker image
         if: ${{ inputs.use_scan == true }}
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: ${{ inputs.docker_context }}
           file: ${{ inputs.dockerfile_path }}
@@ -95,7 +95,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.docker_context }}
           file: ${{ inputs.dockerfile_path }}
