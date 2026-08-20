@@ -34,6 +34,28 @@ jobs:
       - name: Checkout git repository
         uses: actions/checkout@v4
 
+      - name: Validate Docker repository
+        shell: bash
+        run: |
+          REPOSITORY="${{ secrets.docker_repository }}"
+      
+          if [[ -z "$REPOSITORY" ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY is empty. Set it to a fully qualified Docker Hub repository name, for example: hekim13/yukicsvtransform"
+            exit 1
+          fi
+      
+          if [[ "$REPOSITORY" != */* ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY must include the Docker Hub namespace/username. Current value appears to be '$REPOSITORY'. Use the format 'username/repository', for example: hekim13/yukicsvtransform. Update it in GitHub: Settings → Secrets and variables → Actions → DOCKER_REPOSITORY."
+            exit 1
+          fi
+      
+          if [[ "$REPOSITORY" == /* || "$REPOSITORY" == */ ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY has an invalid format. Use 'username/repository', for example: hekim13/yukicsvtransform."
+            exit 1
+          fi
+      
+          echo "Docker repository format is valid."
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
