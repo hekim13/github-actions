@@ -45,19 +45,40 @@ jobs:
           username: ${{ secrets.docker_username }}
           password: ${{ secrets.docker_password }}
 
-      - name: Get the tag
-        id: gettag
+      - name: Get Docker tags
+        id: gettags
+        shell: bash
         run: |
-          VERSION=latest
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+          # Determine the primary tag based on what triggered the workflow.
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            PRIMARY_TAG="pr-${{ github.event.pull_request.number }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Git tag v1.2.0 becomes Docker tag 1.2.0
+            PRIMARY_TAG="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
+            PRIMARY_TAG="latest"
+          else
+            echo "Unsupported GitHub ref: ${GITHUB_REF}"
+            exit 1
           fi
-          if [ ! -z "${{ inputs.tag_suffix }}" ]
-          then
-            VERSION=${VERSION}-${{ inputs.tag_suffix }}
+
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+
+          # Preserve your existing optional suffix behaviour.
+          if [[ -n "${{ inputs.tag_suffix }}" ]]; then
+            PRIMARY_TAG="${PRIMARY_TAG}-${{ inputs.tag_suffix }}"
+            SHA_TAG="${SHA_TAG}-${{ inputs.tag_suffix }}"
           fi
-          TAG=${VERSION}
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+          echo "primary_tag=${PRIMARY_TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "tags<<EOF"
+            echo "${{ secrets.docker_repository }}:${PRIMARY_TAG}"
+            echo "${{ secrets.docker_repository }}:${SHA_TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       
       - name: Get the metadata
         id: getmetadata
