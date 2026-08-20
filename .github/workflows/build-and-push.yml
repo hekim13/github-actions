@@ -34,7 +34,7 @@ jobs:
       - name: Checkout git repository
         uses: actions/checkout@v4
 
-      - name: Validate Docker repository
+      - name: Validate Docker repository GitHub action variable
         shell: bash
         run: |
           REPOSITORY="${{ secrets.docker_repository }}"
