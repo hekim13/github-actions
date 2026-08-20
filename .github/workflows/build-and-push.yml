@@ -52,13 +52,10 @@ jobs:
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             PRIMARY_TAG="pr-${{ github.event.pull_request.number }}"
-
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             PRIMARY_TAG="${GITHUB_REF#refs/tags/v}"
-
           elif [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
             PRIMARY_TAG="latest"
-
           else
             echo "Unsupported GitHub ref: ${GITHUB_REF}"
             exit 1
@@ -87,37 +84,37 @@ jobs:
         run: |
           echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
-      - name: Get Trivy image name
-        if: ${{ inputs.use_scan == true }}
-        id: gettrivyimage
-        shell: bash
-        run: |
-          trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
-          echo "trivyimage=${trivyimage}" >> "$GITHUB_OUTPUT"
-
-      - name: Build Trivy Scan Docker image
+      #
+      # Trivy scan
+      #
+      # Build a single-platform image locally so it can be scanned
+      # without pushing a temporary image to Docker Hub.
+      #
+      - name: Build Docker image for Trivy scan
         if: ${{ inputs.use_scan == true }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.docker_context }}
           file: ${{ inputs.dockerfile_path }}
-          platforms: ${{ inputs.platform }}
-          push: true
-          cache-from: type=registry,ref=${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettags.outputs.primary_tag }}
-          cache-to: type=inline
-          tags: ${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettags.outputs.primary_tag }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: local/trivy-scan:${{ steps.gettags.outputs.primary_tag }}
 
       - name: Run Trivy vulnerability scanner
         if: ${{ inputs.use_scan == true }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettags.outputs.primary_tag }}'
+          image-ref: 'local/trivy-scan:${{ steps.gettags.outputs.primary_tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
+      #
+      # Production / test image
+      #
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
