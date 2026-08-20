@@ -1,4 +1,4 @@
-name: Build and push the latest Docker image
+name: Build and push Docker image
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
       dockerfile_path:
         type: string
         default: './Dockerfile'
-      tag_suffix: 
+      tag_suffix:
         type: string
       platform:
         required: true
@@ -17,6 +17,7 @@ on:
       use_scan:
         type: boolean
         default: true
+
     secrets:
       docker_username:
         required: true
@@ -26,16 +27,38 @@ on:
         required: true
 
 jobs:
-
   build-and-push-docker-image:
-
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout git repository
         uses: actions/checkout@v4
+
+      - name: Validate Docker repository GitHub action variable
+        shell: bash
+        run: |
+          REPOSITORY="${{ secrets.docker_repository }}"
+      
+          if [[ -z "$REPOSITORY" ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY is empty. Set it to a fully qualified Docker Hub repository name, for example: hekim13/yukicsvtransform"
+            exit 1
+          fi
+      
+          if [[ "$REPOSITORY" != */* ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY must include the Docker Hub namespace/username. Current value appears to be '$REPOSITORY'. Use the format 'username/repository', for example: hekim13/yukicsvtransform. Update it in GitHub: Settings → Secrets and variables → Actions → DOCKER_REPOSITORY."
+            exit 1
+          fi
+      
+          if [[ "$REPOSITORY" == /* || "$REPOSITORY" == */ ]]; then
+            echo "::error title=Invalid DOCKER_REPOSITORY::DOCKER_REPOSITORY has an invalid format. Use 'username/repository', for example: hekim13/yukicsvtransform."
+            exit 1
+          fi
+      
+          echo "Docker repository format is valid."
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -45,55 +68,75 @@ jobs:
           username: ${{ secrets.docker_username }}
           password: ${{ secrets.docker_password }}
 
-      - name: Get the tag
-        id: gettag
+      - name: Get Docker tags
+        id: gettags
+        shell: bash
         run: |
-          VERSION=latest
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            PRIMARY_TAG="pr-${{ github.event.pull_request.number }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            PRIMARY_TAG="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${GITHUB_REF}" == "refs/heads/master" ]]; then
+            PRIMARY_TAG="latest"
+          else
+            echo "Unsupported GitHub ref: ${GITHUB_REF}"
+            exit 1
           fi
-          if [ ! -z "${{ inputs.tag_suffix }}" ]
-          then
-            VERSION=${VERSION}-${{ inputs.tag_suffix }}
-          fi
-          TAG=${VERSION}
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-      
-      - name: Get the metadata
-        id: getmetadata
-        run: |
-          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-      
-      - name: Get the Trivy image name
-        if: ${{ inputs.use_scan == true }}
-        id: gettrivyimage
-        run: |
-          trivyimage=$(echo "${{ secrets.docker_repository }}" | sed "s/\//\/trivy\-scan\-/g")
-          echo "trivyimage=${trivyimage}" >> $GITHUB_OUTPUT
 
-      - name: Build Trivy Scan Docker image
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+
+          if [[ -n "${{ inputs.tag_suffix }}" ]]; then
+            PRIMARY_TAG="${PRIMARY_TAG}-${{ inputs.tag_suffix }}"
+            SHA_TAG="${SHA_TAG}-${{ inputs.tag_suffix }}"
+          fi
+
+          echo "primary_tag=${PRIMARY_TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "tags<<EOF"
+            echo "${{ secrets.docker_repository }}:${PRIMARY_TAG}"
+            echo "${{ secrets.docker_repository }}:${SHA_TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Get metadata
+        id: getmetadata
+        shell: bash
+        run: |
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      #
+      # Trivy scan
+      #
+      # Build a single-platform image locally so it can be scanned
+      # without pushing a temporary image to Docker Hub.
+      #
+      - name: Build Docker image for Trivy scan
         if: ${{ inputs.use_scan == true }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.docker_context }}
           file: ${{ inputs.dockerfile_path }}
-          platforms: ${{ inputs.platform }}
-          push: true
-          cache-from: type=registry,ref=${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
-          cache-to: type=inline
-          tags: ${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}
-      
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: local/trivy-scan:${{ steps.gettags.outputs.primary_tag }}
+
       - name: Run Trivy vulnerability scanner
         if: ${{ inputs.use_scan == true }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ steps.gettrivyimage.outputs.trivyimage }}:${{ steps.gettag.outputs.tag }}'
+          image-ref: 'local/trivy-scan:${{ steps.gettags.outputs.primary_tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
+      #
+      # Production / test image
+      #
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -101,11 +144,10 @@ jobs:
           file: ${{ inputs.dockerfile_path }}
           platforms: ${{ inputs.platform }}
           push: true
-          cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
+          cache-from: type=registry,ref=${{ secrets.docker_repository }}:${{ steps.gettags.outputs.primary_tag }}
           cache-to: type=inline
-          tags: ${{ secrets.docker_repository }}:${{ steps.gettag.outputs.tag }}
+          tags: ${{ steps.gettags.outputs.tags }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
             org.opencontainers.image.created=${{ steps.getmetadata.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
-      
