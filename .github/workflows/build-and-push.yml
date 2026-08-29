@@ -125,7 +125,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         if: ${{ inputs.use_scan == true }}
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'local/trivy-scan:${{ steps.gettags.outputs.primary_tag }}'
           format: 'table'
