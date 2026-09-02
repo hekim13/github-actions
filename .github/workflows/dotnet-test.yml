@@ -11,9 +11,17 @@ on:
         type: string
         default: '.'
 
+      solution_path:
+        description: 'Solution or project path, relative to working_directory. Empty uses automatic discovery.'
+        type: string
+        default: ''
+
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    env:
+      DOTNET_TEST_SOLUTION: ${{ inputs.solution_path }}
 
     defaults:
       run:
@@ -29,10 +37,25 @@ jobs:
           dotnet-version: ${{ inputs.dotnet_version }}
 
       - name: Restore
-        run: dotnet restore
+        run: |
+          target=()
+          if [[ -n "$DOTNET_TEST_SOLUTION" ]]; then
+            target+=("$DOTNET_TEST_SOLUTION")
+          fi
+          dotnet restore "${target[@]}"
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: |
+          target=()
+          if [[ -n "$DOTNET_TEST_SOLUTION" ]]; then
+            target+=("$DOTNET_TEST_SOLUTION")
+          fi
+          dotnet build --configuration Release --no-restore "${target[@]}"
 
       - name: Run tests
-        run: dotnet test --configuration Release --no-build
+        run: |
+          target=()
+          if [[ -n "$DOTNET_TEST_SOLUTION" ]]; then
+            target+=("$DOTNET_TEST_SOLUTION")
+          fi
+          dotnet test --configuration Release --no-build "${target[@]}"
